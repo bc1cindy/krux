@@ -73,3 +73,26 @@ def test_tc_code_verification(amigo, mocker):
             keypad_label,
             [NUM_SPECIAL_1, LETTERS, UPPERCASE_LETTERS, NUM_SPECIAL_2],
         )
+
+
+def test_tc_code_verification_esc_key(amigo, mocker):
+    from krux.pages import ESC_KEY
+    from krux.pages.tc_code_verification import TCCodeVerification
+    from krux.input import BUTTON_ENTER, BUTTON_PAGE_PREV
+
+    # Simulate user pressing ESC key
+    BTN_SEQUENCE = [
+        BUTTON_PAGE_PREV,  # Navigate to ESC key
+        BUTTON_PAGE_PREV,  # Navigate to ESC key
+        BUTTON_ENTER,      # Press ESC key
+        BUTTON_ENTER,      # Confirm "Yes" in prompt
+    ]
+
+    ctx = create_ctx(mocker, BTN_SEQUENCE)
+    tc_verifier = TCCodeVerification(ctx)
+    
+    # Test full user interaction flow
+    result = tc_verifier.capture()
+    
+    assert result == False
+    assert ctx.input.wait_for_button.call_count == len(BTN_SEQUENCE)
