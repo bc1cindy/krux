@@ -76,43 +76,31 @@ def test_tc_code_verification_esc_key(amigo, mocker):
     from krux.input import BUTTON_ENTER, BUTTON_PAGE_PREV
 
     # Simulate user pressing ESC key
-    BTN_SEQUENCE = [
-        BUTTON_PAGE_PREV,  # Navigate to ESC key
-        BUTTON_PAGE_PREV,  # Navigate to ESC key
-        BUTTON_ENTER,      # Press ESC key
-        BUTTON_ENTER,      # Confirm "Yes" in prompt
+    cases = [
+        # 1 - Simple ESC key after entering TC Code then pressing "Yes" in prompt
+        (
+            BUTTON_PAGE_PREV,  # Navigate to ESC key
+            BUTTON_PAGE_PREV,  # Navigate to ESC key
+            BUTTON_ENTER,  # Press ESC key
+            BUTTON_ENTER,  # Confirm "Yes" in prompt
+        ),
+        # 2 - ESC key after entering TC Code, then "No" in prompt
+        # then pressing ESC again and then "Yes" to exit
+        (
+            BUTTON_PAGE_PREV,  # Navigate to ESC key
+            BUTTON_PAGE_PREV,  # Navigate to ESC key
+            BUTTON_ENTER,  # Press ESC key (first time)
+            BUTTON_PAGE_PREV,  # Navigate to "No" in prompt
+            BUTTON_ENTER,  # Select "No" - stay in keypad
+            BUTTON_ENTER,  # Press ESC key again (cursor stays on ESC)
+            BUTTON_ENTER,  # Select "Yes" - exit (default selection)
+        ),
     ]
 
-    ctx = create_ctx(mocker, BTN_SEQUENCE)
-    tc_verifier = TCCodeVerification(ctx)
+    for case in cases:
+        ctx = create_ctx(mocker, case)
+        tc_verifier = TCCodeVerification(ctx)
+        result = tc_verifier.capture()
 
-    # Test full user interaction flow
-    result = tc_verifier.capture()
-
-    assert not result
-    assert ctx.input.wait_for_button.call_count == len(BTN_SEQUENCE)
-
-
-def test_tc_code_verification_esc_key_complex_flow(amigo, mocker):
-    from krux.pages.tc_code_verification import TCCodeVerification
-    from krux.input import BUTTON_ENTER, BUTTON_PAGE_PREV
-
-    # Complex flow: ESC -> "No" -> ESC again -> "Yes" (really exit)
-    BTN_SEQUENCE = [
-        BUTTON_PAGE_PREV,  # Navigate to ESC key
-        BUTTON_PAGE_PREV,  # Navigate to ESC key  
-        BUTTON_ENTER,      # Press ESC key (first time)
-        BUTTON_PAGE_PREV,  # Navigate to "No" in prompt
-        BUTTON_ENTER,      # Select "No" - stay in keypad
-        BUTTON_ENTER,      # Press ESC key again (cursor stays on ESC)
-        BUTTON_ENTER,      # Select "Yes" - exit (default selection)
-    ]
-
-    ctx = create_ctx(mocker, BTN_SEQUENCE)
-    tc_verifier = TCCodeVerification(ctx)
-
-    # Test complex user interaction flow
-    result = tc_verifier.capture()
-
-    assert not result
-    assert ctx.input.wait_for_button.call_count == len(BTN_SEQUENCE)
+        assert not result
+        assert ctx.input.wait_for_button.call_count == len(case)
