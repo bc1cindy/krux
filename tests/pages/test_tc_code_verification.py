@@ -76,7 +76,6 @@ def test_tc_code_verification(amigo, mocker):
 
 
 def test_tc_code_verification_esc_key(amigo, mocker):
-    from krux.pages import ESC_KEY
     from krux.pages.tc_code_verification import TCCodeVerification
     from krux.input import BUTTON_ENTER, BUTTON_PAGE_PREV
 
@@ -90,9 +89,34 @@ def test_tc_code_verification_esc_key(amigo, mocker):
 
     ctx = create_ctx(mocker, BTN_SEQUENCE)
     tc_verifier = TCCodeVerification(ctx)
-    
+
     # Test full user interaction flow
     result = tc_verifier.capture()
-    
-    assert result == False
+
+    assert not result
+    assert ctx.input.wait_for_button.call_count == len(BTN_SEQUENCE)
+
+
+def test_tc_code_verification_esc_key_complex_flow(amigo, mocker):
+    from krux.pages.tc_code_verification import TCCodeVerification
+    from krux.input import BUTTON_ENTER, BUTTON_PAGE_PREV
+
+    # Complex flow: ESC -> "No" -> ESC again -> "Yes" (really exit)
+    BTN_SEQUENCE = [
+        BUTTON_PAGE_PREV,  # Navigate to ESC key
+        BUTTON_PAGE_PREV,  # Navigate to ESC key  
+        BUTTON_ENTER,      # Press ESC key (first time)
+        BUTTON_PAGE_PREV,  # Navigate to "No" in prompt
+        BUTTON_ENTER,      # Select "No" - stay in keypad
+        BUTTON_ENTER,      # Press ESC key again (cursor stays on ESC)
+        BUTTON_ENTER,      # Select "Yes" - exit (default selection)
+    ]
+
+    ctx = create_ctx(mocker, BTN_SEQUENCE)
+    tc_verifier = TCCodeVerification(ctx)
+
+    # Test complex user interaction flow
+    result = tc_verifier.capture()
+
+    assert not result
     assert ctx.input.wait_for_button.call_count == len(BTN_SEQUENCE)
