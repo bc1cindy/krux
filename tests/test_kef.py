@@ -1602,3 +1602,66 @@ def test_brute_force_compression_checks(m5stickv):
         )
     )
     # assert 0
+
+
+@pytest.fixture
+def restore_kef_versions():
+    """Fixture to backup and restore KEF VERSIONS after test"""
+    from krux import kef
+
+    # Backup original VERSIONS
+    original_versions = {}
+    for k, v in kef.VERSIONS.items():
+        original_versions[k] = v.copy() if isinstance(v, dict) else v
+
+    yield
+
+    # Restore original VERSIONS
+    for k, v in original_versions.items():
+        kef.VERSIONS[k] = v
+
+
+def test_kef_coverage_edge_cases(m5stickv, restore_kef_versions):
+    """Test edge cases for decrypt exception and disabled versions"""
+    from krux import kef
+    from unittest.mock import patch
+
+    # Test decrypt exception handling
+    cases_decrypt = [
+        (5, "00" * 19),  # ECB mode
+        (10, "00" * 16 + "00" * 20),  # CBC mode
+        (15, "00" * 12 + "00" * 20),  # CTR mode
+    ]
+
+    for case in cases_decrypt:
+        version, payload_hex = case
+
+        # Skip if disabled
+        if kef.VERSIONS[version] is None or kef.VERSIONS[version]["mode"] is None:
+            continue
+
+        cipher = kef.Cipher("testkey", "testsalt", 1000)
+        test_payload = bytes.fromhex(payload_hex)
+
+        # Force _authenticate to fail
+        with patch.object(cipher, "_authenticate", side_effect=Exception("Test error")):
+            result = cipher.decrypt(test_payload, version)
+            assert result is None
+
+    # Test skip disabled versions
+    cases_disabled = [
+        (5, "set_none", "AES-ECB"),
+        (10, "mode_none", "AES-CBC"),
+    ]
+
+    for case in cases_disabled:
+        version, disable_method, mode_name = case
+
+        # Disable version
+        if disable_method == "set_none":
+            kef.VERSIONS[version] = None
+        else:
+            kef.VERSIONS[version]["mode"] = None
+
+        suggestions = kef.suggest_versions("test plaintext", mode_name)
+        assert version not in suggestions
