@@ -342,10 +342,18 @@ def test_Cipher_calling_method__authenticate(m5stickv):
                                         v_pkcs_pad,
                                     )
 
-                            # # TODO solve this
-                            # for invalid in invalid_aes_objects:
-                            #    with pytest.raises(ValueError, match=err):
-                            #        aes._authenticate(plain, invalid, auth, mode, v_auth, v_pkcs_pad)
+                            # GCM requires a valid aes_object where .verify() can be called
+                            if mode == kef.MODE_GCM:
+                                for invalid in invalid_aes_objects:
+                                    with pytest.raises(ValueError, match=err):
+                                        cipher._authenticate(
+                                            plain,
+                                            invalid,
+                                            auth,
+                                            mode,
+                                            v_auth,
+                                            v_pkcs_pad,
+                                        )
 
                             for invalid in invalid_auths:
                                 with pytest.raises(ValueError, match=err):
@@ -774,34 +782,21 @@ def test_suggest_versions_with_disabled_versions(m5stickv):
     """Test that suggest_versions skips disabled versions"""
     from krux import kef
 
-    # Backup original VERSIONS to restore after test
-    original_versions = {}
-    for k, v in kef.VERSIONS.items():
-        original_versions[k] = v.copy() if isinstance(v, dict) else v
+    # Test cases for disabling versions
+    test_cases = [
+        (5, "set_none", "AES-ECB"),  # Disable entire version by setting to None
+        (10, "mode_none", "AES-CBC"),  # Disable by setting mode to None
+    ]
 
-    try:
-        # Test cases for disabling versions
-        test_cases = [
-            (5, "set_none", "AES-ECB"),  # Disable entire version by setting to None
-            (10, "mode_none", "AES-CBC"),  # Disable by setting mode to None
-        ]
+    for version, disable_method, mode_name in test_cases:
+        # Disable the version
+        if disable_method == "set_none":
+            kef.VERSIONS[version] = None
+        else:
+            kef.VERSIONS[version]["mode"] = None
 
-        for version, disable_method, mode_name in test_cases:
-            # Disable the version
-            if disable_method == "set_none":
-                kef.VERSIONS[version] = None
-            else:
-                kef.VERSIONS[version]["mode"] = None
-
-            suggestions = kef.suggest_versions(b"test plaintext", mode_name)
-            assert (
-                version not in suggestions
-            ), f"Version {version} should not be suggested when disabled"
-
-    finally:
-        # Restore original VERSIONS
-        for k, v in original_versions.items():
-            kef.VERSIONS[k] = v
+        suggestions = kef.suggest_versions(b"test plaintext", mode_name)
+        assert version not in suggestions
 
 
 def test_wrapping_is_faithful(m5stickv):
