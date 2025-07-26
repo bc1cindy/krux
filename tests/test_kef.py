@@ -342,10 +342,18 @@ def test_Cipher_calling_method__authenticate(m5stickv):
                                         v_pkcs_pad,
                                     )
 
-                            # # TODO solve this
-                            # for invalid in invalid_aes_objects:
-                            #    with pytest.raises(ValueError, match=err):
-                            #        aes._authenticate(plain, invalid, auth, mode, v_auth, v_pkcs_pad)
+                            # GCM requires a valid aes_object where .verify() can be called
+                            if mode == kef.MODE_GCM:
+                                for invalid in invalid_aes_objects:
+                                    with pytest.raises(ValueError, match=err):
+                                        cipher._authenticate(
+                                            plain,
+                                            invalid,
+                                            auth,
+                                            mode,
+                                            v_auth,
+                                            v_pkcs_pad,
+                                        )
 
                             for invalid in invalid_auths:
                                 with pytest.raises(ValueError, match=err):
